@@ -1,16 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="scrim">#59000000</color>
-    <color name="scrim_no_blur">#A6000000</color>
-    <color name="card">#F21C1C1F</color>
-    <color name="text">#FFF5F5F7</color>
-    <color name="text_secondary">#FF9A9CA3</color>
-    <color name="accent">#FF5B8DF5</color>
+    <!-- One UI dark palette -->
+    <color name="scrim">#66000000</color>
+    <color name="scrim_no_blur">#B3000000</color>
+    <color name="card">#FF0D0D0D</color>
+    <color name="card_blur_tint">#B80D0D0D</color>
+    <color name="group">#FF1E1E1E</color>
+    <color name="group_on_blur">#CC222222</color>
+    <color name="text">#FFF2F2F2</color>
+    <color name="text_secondary">#FF969696</color>
+    <color name="accent">#FF3E91FF</color>
 
-    <color name="segment_track">#24FFFFFF</color>
-    <color name="segment_thumb">#FF5C5E64</color>
-    <color name="segment_selected">#FFFFFFFF</color>
-    <color name="segment_idle">#FF9A9CA3</color>
+    <color name="mode_idle">#FF2E2E2E</color>
+    <color name="mode_icon_idle">#FFD6D6D6</color>
 
-    <color name="ring_track">#29FFFFFF</color>
+    <color name="tab_track">#FF2A2A2A</color>
+    <color name="tab_selected">#FF484848</color>
+    <color name="tab_text_selected">#FFF2F2F2</color>
+    <color name="tab_text_idle">#FF969696</color>
+
+    <color name="slider_track">#FF333333</color>
+    <color name="slider_dot">#FF6A6A6A</color>
+    <color name="divider">#1FFFFFFF</color>
+
+    <color name="ring_track">#FF333333</color>
 </resources>

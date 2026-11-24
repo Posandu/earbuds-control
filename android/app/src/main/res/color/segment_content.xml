@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Icon tint of the round noise-control buttons. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:color="@color/segment_selected" android:state_selected="true" />
-    <item android:color="@color/segment_idle" />
+    <item android:color="@color/on_accent" android:state_selected="true" />
+    <item android:color="@color/mode_icon_idle" />
 </selector>

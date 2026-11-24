@@ -4,7 +4,7 @@
     android:exitFadeDuration="150">
     <item android:state_selected="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/segment_thumb" />
+            <solid android:color="@color/tab_selected" />
             <corners android:radius="17dp" />
         </shape>
     </item>

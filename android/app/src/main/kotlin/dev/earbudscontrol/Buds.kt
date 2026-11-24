@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 enum class Ambient(val byte: Int, val label: String) {
     NOISE_CANCELING(0, "Noise Cancelling"),
-    TRANSPARENCY(1, "Transparency"),
+    TRANSPARENCY(1, "Ambient sound"),
     NORMAL(2, "Off");
 
     fun next(): Ambient = when (this) {

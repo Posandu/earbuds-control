@@ -1,10 +1,8 @@
 package dev.earbudscontrol
 
 import android.Manifest
-import android.animation.ObjectAnimator
 import android.app.Activity
 import android.content.ComponentName
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.service.quicksettings.TileService
@@ -18,7 +16,6 @@ import android.view.animation.OvershootInterpolator
 import android.view.animation.PathInterpolator
 import android.window.OnBackInvokedDispatcher
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.TextView
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -29,7 +26,6 @@ class PanelActivity : Activity() {
     private lateinit var messageText: TextView
     private lateinit var batteryTexts: List<TextView>
     private lateinit var rings: List<RingView>
-    private lateinit var thumb: View
     private lateinit var segments: List<Pair<Ambient, View>>
     private lateinit var dbValue: TextView
     private lateinit var dbStatus: TextView
@@ -37,7 +33,7 @@ class PanelActivity : Activity() {
 
     private lateinit var ncModeRow: View
     private lateinit var strengthRow: View
-    private lateinit var strength: SeekBar
+    private lateinit var strength: PillSlider
     private lateinit var strengthValue: TextView
     private lateinit var transportRow: View
     private lateinit var transparencyRow: View
@@ -56,23 +52,8 @@ class PanelActivity : Activity() {
         setContentView(R.layout.panel)
 
         val scrim = findViewById<View>(R.id.scrim)
-        // Frosted background: blur everything behind this window. The theme flag alone isn't
-        // honoured everywhere (e.g. One UI), so request it explicitly too.
-        window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-        window.attributes = window.attributes.apply { blurBehindRadius = (40 * resources.displayMetrics.density).toInt() }
-        window.setBackgroundBlurRadius((40 * resources.displayMetrics.density).toInt())
         card = findViewById(R.id.card)
-        val windowManager = getSystemService(WindowManager::class.java)
-        val applyBlurState = { blurEnabled: Boolean ->
-            scrim.setBackgroundColor(getColor(if (blurEnabled) R.color.scrim else R.color.scrim_no_blur))
-            // Translucent card only makes sense over a blurred background; otherwise go solid.
-            val cardColor = getColor(R.color.card)
-            (card.background.mutate() as GradientDrawable).setColor(
-                if (blurEnabled) cardColor else cardColor or 0xFF000000.toInt(),
-            )
-        }
-        applyBlurState(windowManager.isCrossWindowBlurEnabled)
-        windowManager.addCrossWindowBlurEnabledListener(mainExecutor) { applyBlurState(it) }
+        setUpBlur(scrim)
         scrim.setOnClickListener { dismiss() }
         card.setOnClickListener { /* swallow taps inside the card */ }
 
@@ -128,8 +109,24 @@ class PanelActivity : Activity() {
 
     // --- Controls -----------------------------------------------------------------------------
 
+    /**
+     * Frosted backdrop where the phone supports window blur. Many Samsung A-series phones ship
+     * with it disabled in SurfaceFlinger (even One UI's own SemBlurInfo refuses there), so fall
+     * back to a plain dim.
+     */
+    private fun setUpBlur(scrim: View) {
+        val radius = (48 * resources.displayMetrics.density).toInt()
+        val windowManager = getSystemService(WindowManager::class.java)
+        val apply = { enabled: Boolean ->
+            scrim.setBackgroundColor(getColor(if (enabled) R.color.scrim else R.color.scrim_no_blur))
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+        window.attributes = window.attributes.apply { blurBehindRadius = radius }
+        apply(windowManager.isCrossWindowBlurEnabled)
+        windowManager.addCrossWindowBlurEnabledListener(mainExecutor) { apply(it) }
+    }
+
     private fun setUpModeSwitch() {
-        thumb = findViewById(R.id.segment_thumb)
         segments = listOf(
             Ambient.NOISE_CANCELING to findViewById(R.id.mode_nc),
             Ambient.NORMAL to findViewById(R.id.mode_off),
@@ -137,16 +134,6 @@ class PanelActivity : Activity() {
         )
         segments.forEach { (ambient, segment) ->
             segment.setOnClickListener { change { it.withAmbient(ambient) } }
-        }
-        // Size and place the sliding thumb once the segments have been measured.
-        findViewById<View>(R.id.segments).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            val params = thumb.layoutParams as ViewGroup.MarginLayoutParams
-            val thumbWidth = segments.first().second.width - 2 * params.leftMargin
-            if (params.width != thumbWidth) {
-                params.width = thumbWidth
-                thumb.layoutParams = params
-            }
-            select(selected, animate = false)
         }
     }
 
@@ -164,18 +151,8 @@ class PanelActivity : Activity() {
             change { it.withTransparency(mode) }
         }
 
-        strength.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                strengthValue.text = progress.toString()
-                if (fromUser) seekBar.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar) {
-                change(haptic = false) { it.withManualLevel(seekBar.progress) }
-            }
-        })
+        strength.onChanging = { strengthValue.text = strengthLabel(it) }
+        strength.onChanged = { level -> change(haptic = false) { it.withManualLevel(level) } }
     }
 
     private fun <T> chips(row: View, items: List<T>, label: (T) -> String, onPick: (T) -> Unit): Map<T, TextView> {
@@ -233,19 +210,16 @@ class PanelActivity : Activity() {
 
     private fun select(ambient: Ambient?, animate: Boolean) {
         selected = ambient
-        segments.forEach { (mode, view) -> view.isSelected = mode == ambient }
-        val index = segments.indexOfFirst { it.first == ambient }
-        thumb.visibility = if (index < 0) View.INVISIBLE else View.VISIBLE
-        if (index < 0) return
-        val target = segments[index].second.width * index.toFloat()
-        if (animate) {
-            ObjectAnimator.ofFloat(thumb, View.TRANSLATION_X, target).apply {
-                duration = 320
-                interpolator = OvershootInterpolator(0.9f)
-                start()
+        segments.forEach { (mode, view) ->
+            view.isSelected = mode == ambient
+            if (animate && mode == ambient) {
+                // Little press-and-pop on the newly selected button.
+                val icon = (view as ViewGroup).getChildAt(0)
+                icon.scaleX = 0.82f
+                icon.scaleY = 0.82f
+                icon.animate().scaleX(1f).scaleY(1f).setDuration(360)
+                    .setInterpolator(OvershootInterpolator(2.2f)).start()
             }
-        } else {
-            thumb.translationX = target
         }
     }
 
@@ -281,9 +255,11 @@ class PanelActivity : Activity() {
         ncModeChips.forEach { (mode, chip) -> chip.isSelected = mode == m.ncMode }
         transportChips.forEach { (t, chip) -> chip.isSelected = t == m.transport }
         transparencyChips.forEach { (mode, chip) -> chip.isSelected = mode == m.transparency }
-        strength.progress = m.manualLevel
-        strengthValue.text = m.manualLevel.toString()
+        strength.setValue(m.manualLevel, animate)
+        strengthValue.text = strengthLabel(m.manualLevel)
     }
+
+    private fun strengthLabel(level: Int) = "$level of 5"
 
     private fun showLevel(db: Int) {
         dbMeter.setLevel(db)
