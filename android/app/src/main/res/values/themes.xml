@@ -16,16 +16,13 @@
         <item name="android:fontFamily">sec</item>
     </style>
 
-    <style name="MiniRing">
-        <item name="android:layout_width">14dp</item>
-        <item name="android:layout_height">14dp</item>
-        <item name="android:layout_marginStart">10dp</item>
-    </style>
-
     <style name="MiniBattery">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:layout_marginStart">12dp</item>
+        <item name="android:drawablePadding">3dp</item>
+        <item name="android:drawableTint">@color/text_secondary</item>
+        <item name="android:gravity">center_vertical</item>
         <item name="android:text">–</item>
         <item name="android:fontFeatureSettings">tnum</item>
         <item name="android:textColor">@color/text_secondary</item>

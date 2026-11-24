@@ -14,46 +14,6 @@ import android.view.animation.DecelerateInterpolator
 
 private fun View.dp(value: Float) = value * resources.displayMetrics.density
 
-/** Circular battery ring. [level] is 0..100, or null when unknown. */
-class RingView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
-    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = dp(6f)
-        color = context.getColor(R.color.ring_track)
-    }
-    private val progress = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = dp(6f)
-        strokeCap = Paint.Cap.ROUND
-    }
-    private val bounds = RectF()
-    private var shown = 0f
-    private var animator: ValueAnimator? = null
-
-    fun setLevel(level: Int?) {
-        val target = (level ?: 0).toFloat()
-        progress.color = context.getColor(if (level != null && level <= 20) R.color.battery_low else R.color.battery_good)
-        animator?.cancel()
-        animator = ValueAnimator.ofFloat(shown, target).apply {
-            duration = 600
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { shown = it.animatedValue as Float; invalidate() }
-            start()
-        }
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        // Stroke scales with the ring so it reads the same at any size.
-        val stroke = minOf(width, height) * 0.17f
-        track.strokeWidth = stroke
-        progress.strokeWidth = stroke
-        val inset = stroke / 2
-        bounds.set(inset, inset, width - inset, height - inset)
-        canvas.drawArc(bounds, 0f, 360f, false, track)
-        if (shown > 0f) canvas.drawArc(bounds, -90f, 360f * shown / 100f, false, progress)
-    }
-}
-
 /** Pill-shaped listening level meter that changes colour as it gets louder. */
 class LevelMeterView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.ring_track) }

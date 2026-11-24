@@ -33,12 +33,9 @@
                 android:textFontWeight="600"
                 android:textSize="15sp" />
 
-            <dev.earbudscontrol.RingView android:id="@+id/ring_left" style="@style/MiniRing" />
-            <TextView android:id="@+id/battery_left" style="@style/MiniBattery" />
-            <dev.earbudscontrol.RingView android:id="@+id/ring_right" style="@style/MiniRing" />
-            <TextView android:id="@+id/battery_right" style="@style/MiniBattery" />
-            <dev.earbudscontrol.RingView android:id="@+id/ring_case" style="@style/MiniRing" />
-            <TextView android:id="@+id/battery_case" style="@style/MiniBattery" />
+            <TextView android:id="@+id/battery_left" style="@style/MiniBattery" android:drawableStart="@drawable/ic_bud_left" />
+            <TextView android:id="@+id/battery_right" style="@style/MiniBattery" android:drawableStart="@drawable/ic_bud_right" />
+            <TextView android:id="@+id/battery_case" style="@style/MiniBattery" android:drawableStart="@drawable/ic_case" />
         </LinearLayout>
 
         <!-- Only shown while connecting or on errors -->

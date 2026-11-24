@@ -20,12 +20,11 @@ import android.widget.TextView
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-/** Pop-up panel: battery rings, noise control with per-mode options, and a live listening-level meter. */
+/** Pop-up panel: battery, noise control with per-mode options, and a live listening-level meter. */
 class PanelActivity : Activity() {
     private lateinit var card: ViewGroup
     private lateinit var messageText: TextView
     private lateinit var batteryTexts: List<TextView>
-    private lateinit var rings: List<RingView>
     private lateinit var segments: List<Pair<Ambient, View>>
     private lateinit var dbValue: TextView
     private lateinit var dbStatus: TextView
@@ -59,7 +58,6 @@ class PanelActivity : Activity() {
 
         messageText = findViewById(R.id.message)
         batteryTexts = listOf(R.id.battery_left, R.id.battery_case, R.id.battery_right).map { findViewById(it) }
-        rings = listOf(R.id.ring_left, R.id.ring_case, R.id.ring_right).map { findViewById(it) }
         dbValue = findViewById(R.id.db_value)
         dbStatus = findViewById(R.id.db_status)
         dbMeter = findViewById(R.id.db_meter)
@@ -230,8 +228,11 @@ class PanelActivity : Activity() {
         val charging = listOf(status.leftCharging, false, status.rightCharging)
         levels.forEachIndexed { i, level ->
             val percent = batteryPercent(level)
-            batteryTexts[i].text = listOf("L", "Case", "R")[i] + " " + (percent?.let { "$it%" + if (charging[i]) "⚡" else "" } ?: "–")
-            rings[i].setLevel(percent)
+            batteryTexts[i].text = percent?.let { "$it%" + if (charging[i]) "⚡" else "" } ?: "–"
+            // Icon and text turn red when that part is running low.
+            val color = getColor(if (percent != null && percent <= 20) R.color.battery_low else R.color.text_secondary)
+            batteryTexts[i].setTextColor(color)
+            batteryTexts[i].compoundDrawableTintList = android.content.res.ColorStateList.valueOf(color)
         }
         showModes(SoundModes(status.soundModes), animate = modes != null)
     }
