@@ -1,16 +1,16 @@
-# scq
+# earbuds-control
 
-Barebones Linux control for **Soundcore Liberty 4 NC (A3947)**: battery, noise canceling modes, and a live listening-level (dB) meter.
+Barebones control for **Soundcore Liberty 4 NC (A3947)**: battery, noise canceling modes, and a live listening-level (dB) meter.
 
 Needs the earbuds paired and connected, and `python-dbus` plus `python-gobject` (preinstalled on most desktops).
 
 ```sh
-./scq status                        # battery (left/right/case), firmware, current mode
-./scq anc noise-canceling           # or: transparency, normal
-./scq nc manual --level 3           # or: adaptive, transportation
-./scq transparency vocal            # or: full
-./scq db                            # live meter, Ctrl+C to stop
-./scq db --bar --interval 2         # one line per reading, for status bars
+./linux/scq status                        # battery (left/right/case), firmware, current mode
+./linux/scq anc noise-canceling           # or: transparency, normal
+./linux/scq nc manual --level 3           # or: adaptive, transportation
+./linux/scq transparency vocal            # or: full
+./linux/scq db                            # live meter, Ctrl+C to stop
+./linux/scq db --bar --interval 2         # one line per reading, for status bars
 ```
 
 ## How it works
