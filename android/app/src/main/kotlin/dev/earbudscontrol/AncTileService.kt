@@ -17,6 +17,11 @@ class AncTileService : TileService() {
 
     override fun onStartListening() {
         val cached = StatusCache.load(this)
+        if (Buds.isLinked(this) == false) {
+            // In the case or off: say so instead of failing to connect.
+            render(null, Buds.NOT_CONNECTED)
+            return
+        }
         render(cached.ambient, batterySubtitle(cached.left, cached.right))
         // Background refresh: skip it if the panel already holds the connection.
         if (hasBluetoothPermission(this)) runOnBuds(waitMs = 0) { buds -> buds.status() }

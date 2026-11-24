@@ -275,6 +275,22 @@ class PanelActivity : Activity() {
         }
     }
 
+    /** Earbuds unreachable (in the case, off, out of range): grey out the controls. */
+    private fun showAway(message: String) {
+        showMessage(message)
+        setAway(true)
+        showLevel(0)
+    }
+
+    private fun setAway(away: Boolean) {
+        if (away) modes = null // ignore taps until we're connected again
+        val alpha = if (away) 0.35f else 1f
+        listOf(R.id.modes, R.id.details, R.id.level_row).forEach { id ->
+            findViewById<View>(id).animate().alpha(alpha).setDuration(200).start()
+        }
+        batteryTexts.forEach { it.animate().alpha(alpha).setDuration(200).start() }
+    }
+
     /** Status line under the name; hidden once connected. */
     private fun showMessage(message: String?) {
         messageText.text = message
@@ -301,44 +317,67 @@ class PanelActivity : Activity() {
         }
 
         override fun run() {
-            try {
-                Buds.connect(this@PanelActivity).use { buds ->
-                    var status = buds.status()
-                    StatusCache.save(this@PanelActivity, status)
-                    runOnUiThread { showMessage(null); showStatus(status) }
-                    // Live updates pushed by the earbuds: fold them into our state on this thread.
-                    buds.onSoundModesChanged = { pushed ->
-                        post { _, current ->
-                            val modes = SoundModes(pushed)
-                            runOnUiThread { showModes(modes, animate = true) }
-                            current.copy(ambient = modes.ambient, soundModes = pushed)
-                        }
+            var connectedOnce = false
+            while (running) {
+                try {
+                    if (Buds.isLinked(this@PanelActivity) == false) {
+                        runOnUiThread { showAway(Buds.NOT_CONNECTED) }
+                        sleep(1500)
+                        continue
                     }
-                    var tick = 0
-                    while (running) {
-                        val action = actions.poll(1, TimeUnit.SECONDS)
-                        if (action != null) {
-                            status = action(buds, status)
-                            StatusCache.save(this@PanelActivity, status)
-                        }
-                        // Full re-read every few seconds catches battery, charging and anything
-                        // the earbuds changed without telling us.
-                        if (++tick % STATUS_REFRESH_TICKS == 0 && actions.isEmpty()) {
-                            val fresh = buds.status()
-                            if (!fresh.sameAs(status)) {
-                                status = fresh
-                                StatusCache.save(this@PanelActivity, status)
-                                runOnUiThread { showStatus(fresh) }
-                            }
-                        }
-                        val db = buds.volumeLevel()
-                        runOnUiThread { showLevel(db) }
+                    if (!connectedOnce) runOnUiThread { showMessage("Connecting…") }
+                    session()
+                    connectedOnce = true
+                } catch (_: InterruptedException) {
+                    return
+                } catch (e: BudsException) {
+                    if (!running) return
+                    runOnUiThread { showAway(e.message ?: "Couldn't reach earbuds") }
+                    // Back in the case or briefly out of range: keep trying quietly.
+                    try {
+                        sleep(2000)
+                    } catch (_: InterruptedException) {
+                        return
                     }
                 }
-            } catch (_: InterruptedException) {
-                // panel closed
-            } catch (e: BudsException) {
-                if (running) runOnUiThread { showMessage(e.message ?: "Couldn't reach earbuds") }
+            }
+        }
+
+        /** One connected stretch; returns when the panel closes, throws when the buds go away. */
+        private fun session() {
+            actions.clear()
+            Buds.connect(this@PanelActivity).use { buds ->
+                var status = buds.status()
+                StatusCache.save(this@PanelActivity, status)
+                runOnUiThread { showMessage(null); setAway(false); showStatus(status) }
+                // Live updates pushed by the earbuds: fold them into our state on this thread.
+                buds.onSoundModesChanged = { pushed ->
+                    post { _, current ->
+                        val modes = SoundModes(pushed)
+                        runOnUiThread { showModes(modes, animate = true) }
+                        current.copy(ambient = modes.ambient, soundModes = pushed)
+                    }
+                }
+                var tick = 0
+                while (running) {
+                    val action = actions.poll(1, TimeUnit.SECONDS)
+                    if (action != null) {
+                        status = action(buds, status)
+                        StatusCache.save(this@PanelActivity, status)
+                    }
+                    // Full re-read every few seconds catches battery, charging and anything
+                    // the earbuds changed without telling us.
+                    if (++tick % STATUS_REFRESH_TICKS == 0 && actions.isEmpty()) {
+                        val fresh = buds.status()
+                        if (!fresh.sameAs(status)) {
+                            status = fresh
+                            StatusCache.save(this@PanelActivity, status)
+                            runOnUiThread { showStatus(fresh) }
+                        }
+                    }
+                    val db = buds.volumeLevel()
+                    runOnUiThread { showLevel(db) }
+                }
             }
         }
     }

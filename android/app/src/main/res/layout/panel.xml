@@ -50,6 +50,7 @@
 
         <!-- Noise control -->
         <LinearLayout
+            android:id="@+id/modes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
@@ -112,6 +113,7 @@
 
         <!-- Listening level: one line -->
         <LinearLayout
+            android:id="@+id/level_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"

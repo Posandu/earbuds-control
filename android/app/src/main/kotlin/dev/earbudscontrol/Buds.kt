@@ -174,6 +174,7 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
     companion object {
         private val SERVICE_UUID: UUID = UUID.fromString("0cf12d31-fac3-4553-bd80-d6832e7b3947")
         private const val NAME_HINT = "Liberty 4 NC"
+        const val NOT_CONNECTED = "Not connected"
 
         private val OUT_HEADER = byteArrayOf(0x08, 0xEE.toByte(), 0x00, 0x00, 0x00)
         private val IN_HEADER = byteArrayOf(0x09, 0xFF.toByte(), 0x00, 0x00, 0x01)
@@ -212,13 +213,39 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
         fun connect(context: Context, waitMs: Long = 4000): Buds =
             connectOrNull(context, waitMs) ?: throw BudsException("Earbuds busy, try again")
 
-        private fun openSocket(context: Context): BluetoothSocket {
-            if (!hasBluetoothPermission(context)) throw BudsException("Bluetooth permission needed")
+        /**
+         * Whether the earbuds are connected to this phone right now (false when they're in the
+         * case or off), so callers can skip a doomed connection attempt. Null if unknown.
+         */
+        fun isLinked(context: Context): Boolean? {
+            if (!hasBluetoothPermission(context)) return null
+            val device = try {
+                findDevice(context)
+            } catch (_: BudsException) {
+                return false
+            }
+            return try {
+                // Hidden but long-standing API; fall back to "unknown" if it ever goes away.
+                device.javaClass.getMethod("isConnected").invoke(device) as Boolean
+            } catch (_: ReflectiveOperationException) {
+                null
+            } catch (_: RuntimeException) {
+                null
+            }
+        }
+
+        private fun findDevice(context: Context): android.bluetooth.BluetoothDevice {
             val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
                 ?: throw BudsException("No Bluetooth on this device")
             if (!adapter.isEnabled) throw BudsException("Bluetooth is off")
-            val device = adapter.bondedDevices.firstOrNull { it.name?.contains(NAME_HINT, ignoreCase = true) == true }
+            return adapter.bondedDevices.firstOrNull { it.name?.contains(NAME_HINT, ignoreCase = true) == true }
                 ?: throw BudsException("Liberty 4 NC isn't paired")
+        }
+
+        private fun openSocket(context: Context): BluetoothSocket {
+            if (!hasBluetoothPermission(context)) throw BudsException("Bluetooth permission needed")
+            if (isLinked(context) == false) throw BudsException(NOT_CONNECTED)
+            val device = findDevice(context)
             repeat(2) { attempt ->
                 val socket = device.createRfcommSocketToServiceRecord(SERVICE_UUID)
                 try {
