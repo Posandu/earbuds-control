@@ -1,13 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="scrim">#66000000</color>
-    <color name="card">#FFFFFFFF</color>
-    <color name="text">#FF14161A</color>
-    <color name="text_secondary">#FF5E636B</color>
+    <color name="scrim">#26000000</color>
+    <color name="scrim_no_blur">#80000000</color>
+    <color name="card">#F5F4F4F7</color>
+    <color name="text">#FF111214</color>
+    <color name="text_secondary">#FF6C6E75</color>
     <color name="accent">#FF2F6FED</color>
-    <color name="mode_idle">#FFEDEEF1</color>
-    <color name="mode_icon_idle">#FF14161A</color>
-    <color name="mode_icon_selected">#FFFFFFFF</color>
-    <color name="track">#FFE4E6EA</color>
+
+    <color name="segment_track">#14000000</color>
+    <color name="segment_thumb">#FFFFFFFF</color>
+    <color name="segment_selected">#FF111214</color>
+    <color name="segment_idle">#FF6C6E75</color>
+
+    <color name="ring_track">#1A000000</color>
+    <color name="battery_good">#FF30C15A</color>
+    <color name="battery_low">#FFF0443A</color>
+
+    <color name="level_ok">#FF30C15A</color>
+    <color name="level_warn">#FFF5B800</color>
+    <color name="level_loud">#FFF0443A</color>
+
     <color name="launcher_background">#FF14161A</color>
 </resources>

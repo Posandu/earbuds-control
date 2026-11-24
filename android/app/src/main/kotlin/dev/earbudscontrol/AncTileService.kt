@@ -18,7 +18,8 @@ class AncTileService : TileService() {
     override fun onStartListening() {
         val cached = StatusCache.load(this)
         render(cached.ambient, batterySubtitle(cached.left, cached.right))
-        if (hasBluetoothPermission(this)) runOnBuds { buds -> buds.status() }
+        // Background refresh: skip it if the panel already holds the connection.
+        if (hasBluetoothPermission(this)) runOnBuds(waitMs = 0) { buds -> buds.status() }
     }
 
     override fun onClick() {
@@ -29,7 +30,7 @@ class AncTileService : TileService() {
         // Optimistic update so the tile reacts instantly.
         val cached = StatusCache.load(this)
         cached.ambient?.let { render(it.next(), "Switching…") }
-        runOnBuds { buds ->
+        runOnBuds(waitMs = 4000) { buds ->
             val status = buds.status()
             val next = (status.ambient ?: Ambient.NORMAL).next()
             buds.setAmbient(next, status.soundModes)
@@ -37,11 +38,16 @@ class AncTileService : TileService() {
         }
     }
 
-    private fun runOnBuds(action: (Buds) -> Status) {
+    private fun runOnBuds(waitMs: Long, action: (Buds) -> Status) {
         if (!busy.compareAndSet(false, true)) return
         Thread {
             try {
-                val status = Buds.connect(this).use(action)
+                val buds = Buds.connectOrNull(this, waitMs)
+                if (buds == null) {
+                    if (waitMs > 0) throw BudsException("Earbuds busy, try again")
+                    return@Thread
+                }
+                val status = buds.use(action)
                 StatusCache.save(this, status)
                 main.post { render(status.ambient, batterySubtitle(status.left, status.right)) }
             } catch (e: BudsException) {

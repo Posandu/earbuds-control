@@ -9,106 +9,163 @@
         android:id="@+id/card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:layout_margin="12dp"
+        android:layout_gravity="center"
+        android:layout_marginHorizontal="20dp"
         android:background="@drawable/card"
+        android:elevation="24dp"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingHorizontal="24dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="28dp">
 
+        <!-- Header -->
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
             android:text="Liberty 4 NC"
             android:textColor="@color/text"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textSize="22sp" />
 
         <TextView
             android:id="@+id/message"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="2dp"
+            android:gravity="center"
+            android:text="Connecting…"
             android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            android:visibility="gone" />
+            android:textSize="14sp" />
 
+        <!-- Battery rings -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="24dp"
             android:orientation="horizontal">
 
             <LinearLayout style="@style/Battery">
-                <TextView android:id="@+id/battery_left" style="@style/BatteryValue" />
+                <FrameLayout style="@style/BatteryRingFrame">
+                    <dev.earbudscontrol.RingView android:id="@+id/ring_left" style="@style/BatteryRing" />
+                    <TextView android:id="@+id/battery_left" style="@style/BatteryValue" />
+                </FrameLayout>
                 <TextView style="@style/BatteryLabel" android:text="Left" />
             </LinearLayout>
 
             <LinearLayout style="@style/Battery">
-                <TextView android:id="@+id/battery_case" style="@style/BatteryValue" />
+                <FrameLayout style="@style/BatteryRingFrame">
+                    <dev.earbudscontrol.RingView android:id="@+id/ring_case" style="@style/BatteryRing" />
+                    <TextView android:id="@+id/battery_case" style="@style/BatteryValue" />
+                </FrameLayout>
                 <TextView style="@style/BatteryLabel" android:text="Case" />
             </LinearLayout>
 
             <LinearLayout style="@style/Battery">
-                <TextView android:id="@+id/battery_right" style="@style/BatteryValue" />
+                <FrameLayout style="@style/BatteryRingFrame">
+                    <dev.earbudscontrol.RingView android:id="@+id/ring_right" style="@style/BatteryRing" />
+                    <TextView android:id="@+id/battery_right" style="@style/BatteryValue" />
+                </FrameLayout>
                 <TextView style="@style/BatteryLabel" android:text="Right" />
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Noise control segmented switch -->
+        <TextView
+            style="@style/SectionTitle"
+            android:text="Noise Control" />
+
+        <FrameLayout
+            android:id="@+id/segments"
+            android:layout_width="match_parent"
+            android:layout_height="76dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/segment_track">
+
+            <View
+                android:id="@+id/segment_thumb"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="4dp"
+                android:background="@drawable/segment_thumb" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <LinearLayout android:id="@+id/mode_nc" style="@style/Segment">
+                    <ImageView style="@style/SegmentIcon" android:src="@drawable/ic_mode_nc" />
+                    <TextView style="@style/SegmentLabel" android:text="Noise Cancel" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/mode_off" style="@style/Segment">
+                    <ImageView style="@style/SegmentIcon" android:src="@drawable/ic_mode_off" />
+                    <TextView style="@style/SegmentLabel" android:text="Off" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/mode_transparency" style="@style/Segment">
+                    <ImageView style="@style/SegmentIcon" android:src="@drawable/ic_mode_transparency" />
+                    <TextView style="@style/SegmentLabel" android:text="Transparency" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Listening level -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="26dp"
+            android:gravity="bottom"
             android:orientation="horizontal">
 
-            <LinearLayout android:id="@+id/mode_nc" style="@style/Mode">
-                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_nc" />
-                <TextView style="@style/ModeLabel" android:text="Noise\nCancelling" />
-            </LinearLayout>
-
-            <LinearLayout android:id="@+id/mode_transparency" style="@style/Mode">
-                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_transparency" />
-                <TextView style="@style/ModeLabel" android:text="Transparency\n" />
-            </LinearLayout>
-
-            <LinearLayout android:id="@+id/mode_off" style="@style/Mode">
-                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_off" />
-                <TextView style="@style/ModeLabel" android:text="Off\n" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Listening level"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Listening Level"
+                    android:textColor="@color/text"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/db_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nothing playing"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/db_value"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-light"
                 android:fontFeatureSettings="tnum"
-                android:text="– dB"
+                android:text="–"
                 android:textColor="@color/text"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="34sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="6dp"
+                android:text="dB"
+                android:textColor="@color/text_secondary"
+                android:textSize="15sp" />
         </LinearLayout>
 
-        <ProgressBar
-            android:id="@+id/db_bar"
-            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+        <dev.earbudscontrol.LevelMeterView
+            android:id="@+id/db_meter"
             android:layout_width="match_parent"
-            android:layout_height="8dp"
-            android:layout_marginTop="8dp"
-            android:max="100"
-            android:progressDrawable="@drawable/level_bar" />
+            android:layout_height="12dp"
+            android:layout_marginTop="10dp" />
     </LinearLayout>
 </FrameLayout>

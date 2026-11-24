@@ -9,7 +9,9 @@ import android.content.pm.PackageManager
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Soundcore Liberty 4 NC (A3947) control protocol over RFCOMM. See ../README.md. */
 
@@ -50,6 +52,7 @@ fun batteryPercent(level: Int): Int? = if (level in 0..5) level * 20 else null
 @SuppressLint("MissingPermission")
 class Buds private constructor(private val socket: BluetoothSocket) : AutoCloseable {
     private val inbox = LinkedBlockingQueue<ByteArray>()
+    private val closed = AtomicBoolean(false)
 
     init {
         Thread(::readLoop, "buds-reader").apply { isDaemon = true }.start()
@@ -146,10 +149,12 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
     }
 
     override fun close() {
+        if (!closed.compareAndSet(false, true)) return
         try {
             socket.close()
         } catch (_: IOException) {
         }
+        connectionLock.release()
     }
 
     companion object {
@@ -171,24 +176,47 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
         private const val OFF_SOUND_MODES = 126
         private const val OFF_CASE_BATTERY = 139
 
-        fun connect(context: Context): Buds {
+        /**
+         * The earbuds accept a single control connection, so the tile and the panel share this
+         * lock instead of racing each other for it. Held from connect() until close().
+         */
+        private val connectionLock = Semaphore(1)
+
+        /** Connect, waiting up to [waitMs] for another part of the app to finish; null if it didn't. */
+        fun connectOrNull(context: Context, waitMs: Long): Buds? {
+            if (!connectionLock.tryAcquire(waitMs, TimeUnit.MILLISECONDS)) return null
+            try {
+                return Buds(openSocket(context))
+            } catch (e: Throwable) {
+                connectionLock.release()
+                throw e
+            }
+        }
+
+        fun connect(context: Context, waitMs: Long = 4000): Buds =
+            connectOrNull(context, waitMs) ?: throw BudsException("Earbuds busy, try again")
+
+        private fun openSocket(context: Context): BluetoothSocket {
             if (!hasBluetoothPermission(context)) throw BudsException("Bluetooth permission needed")
             val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
                 ?: throw BudsException("No Bluetooth on this device")
             if (!adapter.isEnabled) throw BudsException("Bluetooth is off")
             val device = adapter.bondedDevices.firstOrNull { it.name?.contains(NAME_HINT, ignoreCase = true) == true }
                 ?: throw BudsException("Liberty 4 NC isn't paired")
-            val socket = device.createRfcommSocketToServiceRecord(SERVICE_UUID)
-            try {
-                socket.connect()
-            } catch (e: IOException) {
+            repeat(2) { attempt ->
+                val socket = device.createRfcommSocketToServiceRecord(SERVICE_UUID)
                 try {
-                    socket.close()
-                } catch (_: IOException) {
+                    socket.connect()
+                    return socket
+                } catch (e: IOException) {
+                    try {
+                        socket.close()
+                    } catch (_: IOException) {
+                    }
+                    if (attempt == 0) Thread.sleep(400)
                 }
-                throw BudsException("Can't reach earbuds. Close the Soundcore app?")
             }
-            return Buds(socket)
+            throw BudsException("Can't reach earbuds. Are they connected to this phone?")
         }
 
         private fun buildPacket(cmd: IntArray, body: ByteArray): ByteArray {

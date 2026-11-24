@@ -7,7 +7,11 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowAnimationStyle">@android:style/Animation.InputMethod</item>
+        <!-- Frosted background: blur whatever is behind the popup (Android 12+). -->
+        <item name="android:windowBlurBehindEnabled">true</item>
+        <item name="android:windowBlurBehindRadius">48dp</item>
+        <!-- The card animates itself in and out. -->
+        <item name="android:windowAnimationStyle">@null</item>
         <item name="android:colorAccent">@color/accent</item>
     </style>
 
@@ -19,48 +23,68 @@
         <item name="android:orientation">vertical</item>
     </style>
 
+    <style name="BatteryRingFrame">
+        <item name="android:layout_width">72dp</item>
+        <item name="android:layout_height">72dp</item>
+    </style>
+
+    <style name="BatteryRing">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+    </style>
+
     <style name="BatteryValue">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_gravity">center</item>
         <item name="android:text">–</item>
-        <item name="android:textColor">@color/text</item>
-        <item name="android:textSize">22sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">16sp</item>
     </style>
 
     <style name="BatteryLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">8dp</item>
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textSize">13sp</item>
     </style>
 
-    <style name="Mode">
-        <item name="android:layout_width">0dp</item>
+    <style name="SectionTitle">
+        <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">28dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="Segment">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:gravity">center_horizontal</item>
+        <item name="android:gravity">center</item>
         <item name="android:orientation">vertical</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
-        <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>
     </style>
 
-    <style name="ModeIcon">
-        <item name="android:layout_width">64dp</item>
-        <item name="android:layout_height">64dp</item>
-        <item name="android:padding">18dp</item>
-        <item name="android:background">@drawable/mode_circle</item>
-        <item name="android:tint">@color/mode_icon</item>
+    <style name="SegmentIcon">
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
+        <item name="android:tint">@color/segment_content</item>
         <item name="android:duplicateParentState">true</item>
     </style>
 
-    <style name="ModeLabel">
+    <style name="SegmentLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">8dp</item>
-        <item name="android:gravity">center_horizontal</item>
-        <item name="android:textColor">@color/text</item>
-        <item name="android:textSize">13sp</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/segment_content</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:duplicateParentState">true</item>
     </style>
 </resources>
