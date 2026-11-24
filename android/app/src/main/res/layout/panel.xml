@@ -10,206 +10,142 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginHorizontal="14dp"
+        android:layout_marginHorizontal="20dp"
         android:background="@drawable/card"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:paddingHorizontal="22dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="22dp">
 
-        <!-- Header -->
-        <TextView
+        <!-- Header: small name on the left, compact battery on the right -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="12dp"
-            android:layout_marginTop="10dp"
-            android:fontFamily="sec"
-            android:text="Liberty 4 NC"
-            android:textColor="@color/text"
-            android:textFontWeight="700"
-            android:textSize="24sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Liberty 4 NC"
+                android:textColor="@color/text"
+                android:textFontWeight="600"
+                android:textSize="15sp" />
+
+            <dev.earbudscontrol.RingView android:id="@+id/ring_left" style="@style/MiniRing" />
+            <TextView android:id="@+id/battery_left" style="@style/MiniBattery" />
+            <dev.earbudscontrol.RingView android:id="@+id/ring_right" style="@style/MiniRing" />
+            <TextView android:id="@+id/battery_right" style="@style/MiniBattery" />
+            <dev.earbudscontrol.RingView android:id="@+id/ring_case" style="@style/MiniRing" />
+            <TextView android:id="@+id/battery_case" style="@style/MiniBattery" />
+        </LinearLayout>
+
+        <!-- Only shown while connecting or on errors -->
         <TextView
             android:id="@+id/message"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="12dp"
-            android:layout_marginBottom="14dp"
-            android:fontFamily="sec"
+            android:layout_marginTop="2dp"
             android:text="Connecting…"
             android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
 
-        <!-- Battery -->
+        <!-- Noise control -->
         <LinearLayout
-            style="@style/Group"
-            android:orientation="horizontal"
-            android:paddingVertical="18dp">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:orientation="horizontal">
 
-            <LinearLayout style="@style/Battery">
-                <FrameLayout style="@style/BatteryRingFrame">
-                    <dev.earbudscontrol.RingView android:id="@+id/ring_left" style="@style/BatteryRing" />
-                    <TextView android:id="@+id/battery_left" style="@style/BatteryValue" />
-                </FrameLayout>
-                <TextView style="@style/BatteryLabel" android:text="Left" />
+            <LinearLayout android:id="@+id/mode_nc" style="@style/Mode">
+                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_nc" />
+                <TextView style="@style/ModeLabel" android:text="Noise Cancel" />
             </LinearLayout>
 
-            <LinearLayout style="@style/Battery">
-                <FrameLayout style="@style/BatteryRingFrame">
-                    <dev.earbudscontrol.RingView android:id="@+id/ring_case" style="@style/BatteryRing" />
-                    <TextView android:id="@+id/battery_case" style="@style/BatteryValue" />
-                </FrameLayout>
-                <TextView style="@style/BatteryLabel" android:text="Case" />
+            <LinearLayout android:id="@+id/mode_off" style="@style/Mode">
+                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_off" />
+                <TextView style="@style/ModeLabel" android:text="Off" />
             </LinearLayout>
 
-            <LinearLayout style="@style/Battery">
-                <FrameLayout style="@style/BatteryRingFrame">
-                    <dev.earbudscontrol.RingView android:id="@+id/ring_right" style="@style/BatteryRing" />
-                    <TextView android:id="@+id/battery_right" style="@style/BatteryValue" />
-                </FrameLayout>
-                <TextView style="@style/BatteryLabel" android:text="Right" />
+            <LinearLayout android:id="@+id/mode_transparency" style="@style/Mode">
+                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_transparency" />
+                <TextView style="@style/ModeLabel" android:text="Ambient" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Noise controls -->
+        <!-- Mode details: which rows show depends on the selected mode -->
         <LinearLayout
-            android:id="@+id/noise_group"
-            style="@style/Group"
+            android:id="@+id/details"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView style="@style/GroupTitle" android:text="Noise controls" />
+            <LinearLayout android:id="@+id/nc_mode_row" style="@style/ChipRow" />
 
             <LinearLayout
+                android:id="@+id/strength_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <LinearLayout android:id="@+id/mode_nc" style="@style/Mode">
-                    <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_nc" />
-                    <TextView style="@style/ModeLabel" android:text="Noise cancel" />
-                </LinearLayout>
-
-                <LinearLayout android:id="@+id/mode_off" style="@style/Mode">
-                    <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_off" />
-                    <TextView style="@style/ModeLabel" android:text="Off" />
-                </LinearLayout>
-
-                <LinearLayout android:id="@+id/mode_transparency" style="@style/Mode">
-                    <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_transparency" />
-                    <TextView style="@style/ModeLabel" android:text="Ambient" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Mode details: which rows show depends on the selected mode -->
-            <LinearLayout
-                android:id="@+id/details"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <LinearLayout android:id="@+id/nc_mode_row" style="@style/ChipRow" />
-
-                <LinearLayout
-                    android:id="@+id/strength_row"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:orientation="vertical">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:fontFamily="sec"
-                            android:text="Strength"
-                            android:textColor="@color/text"
-                            android:textSize="15sp" />
-
-                        <TextView
-                            android:id="@+id/strength_value"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sec"
-                            android:fontFeatureSettings="tnum"
-                            android:textColor="@color/accent"
-                            android:textFontWeight="600"
-                            android:textSize="15sp" />
-                    </LinearLayout>
-
-                    <dev.earbudscontrol.PillSlider
-                        android:id="@+id/strength"
-                        android:layout_width="match_parent"
-                        android:layout_height="34dp"
-                        android:layout_marginTop="10dp" />
-                </LinearLayout>
-
-                <LinearLayout android:id="@+id/transport_row" style="@style/ChipRow" />
-
-                <LinearLayout android:id="@+id/transparency_row" style="@style/ChipRow" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Listening level -->
-        <LinearLayout
-            style="@style/Group"
-            android:orientation="vertical">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="bottom"
-                android:orientation="horizontal">
-
-                <LinearLayout
+                <dev.earbudscontrol.PillSlider
+                    android:id="@+id/strength"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView style="@style/GroupTitle" android:text="Listening level" />
-
-                    <TextView
-                        android:id="@+id/db_status"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:fontFamily="sec"
-                        android:text="Nothing playing"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
-                </LinearLayout>
+                    android:layout_height="30dp"
+                    android:layout_weight="1" />
 
                 <TextView
-                    android:id="@+id/db_value"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/strength_value"
+                    android:layout_width="28dp"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sec"
                     android:fontFeatureSettings="tnum"
-                    android:text="–"
-                    android:textColor="@color/text"
-                    android:textFontWeight="300"
-                    android:textSize="36sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginBottom="7dp"
-                    android:fontFamily="sec"
-                    android:text="dB"
+                    android:gravity="end"
                     android:textColor="@color/text_secondary"
-                    android:textSize="15sp" />
+                    android:textFontWeight="600"
+                    android:textSize="14sp" />
             </LinearLayout>
+
+            <LinearLayout android:id="@+id/transport_row" style="@style/ChipRow" />
+
+            <LinearLayout android:id="@+id/transparency_row" style="@style/ChipRow" />
+        </LinearLayout>
+
+        <!-- Listening level: one line -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/db_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="Nothing playing"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
 
             <dev.earbudscontrol.LevelMeterView
                 android:id="@+id/db_meter"
-                android:layout_width="match_parent"
-                android:layout_height="8dp"
-                android:layout_marginTop="12dp" />
+                android:layout_width="0dp"
+                android:layout_height="6dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/db_value"
+                android:layout_width="52dp"
+                android:layout_height="wrap_content"
+                android:fontFeatureSettings="tnum"
+                android:gravity="end"
+                android:text="–"
+                android:textColor="@color/text"
+                android:textFontWeight="600"
+                android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

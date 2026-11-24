@@ -230,7 +230,7 @@ class PanelActivity : Activity() {
         val charging = listOf(status.leftCharging, false, status.rightCharging)
         levels.forEachIndexed { i, level ->
             val percent = batteryPercent(level)
-            batteryTexts[i].text = percent?.let { "$it%" + if (charging[i]) "⚡" else "" } ?: "–"
+            batteryTexts[i].text = listOf("L", "Case", "R")[i] + " " + (percent?.let { "$it%" + if (charging[i]) "⚡" else "" } ?: "–")
             rings[i].setLevel(percent)
         }
         showModes(SoundModes(status.soundModes), animate = modes != null)
@@ -259,21 +259,23 @@ class PanelActivity : Activity() {
         strengthValue.text = strengthLabel(m.manualLevel)
     }
 
-    private fun strengthLabel(level: Int) = "$level of 5"
+    private fun strengthLabel(level: Int) = level.toString()
 
     private fun showLevel(db: Int) {
         dbMeter.setLevel(db)
-        dbValue.text = if (db > 0) db.toString() else "–"
+        dbValue.text = if (db > 0) "$db dB" else "–"
         dbStatus.text = when {
-            db <= 0 -> "Nothing playing"
+            db <= 0 -> "Not playing"
             db < 75 -> "OK"
             db < 85 -> "Loud"
             else -> "Too loud"
         }
     }
 
-    private fun showMessage(message: String) {
+    /** Status line under the name; hidden once connected. */
+    private fun showMessage(message: String?) {
         messageText.text = message
+        messageText.visibility = if (message == null) View.GONE else View.VISIBLE
     }
 
     /** Holds one connection while the panel is visible: runs mode changes and polls the dB level. */
@@ -295,7 +297,7 @@ class PanelActivity : Activity() {
                 Buds.connect(this@PanelActivity).use { buds ->
                     var status = buds.status()
                     StatusCache.save(this@PanelActivity, status)
-                    runOnUiThread { showMessage("Connected"); showStatus(status) }
+                    runOnUiThread { showMessage(null); showStatus(status) }
                     while (running) {
                         val action = actions.poll(1, TimeUnit.SECONDS)
                         if (action != null) {

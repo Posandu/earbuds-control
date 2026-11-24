@@ -43,7 +43,11 @@ class RingView @JvmOverloads constructor(context: Context, attrs: AttributeSet? 
     }
 
     override fun onDraw(canvas: Canvas) {
-        val inset = track.strokeWidth / 2
+        // Stroke scales with the ring so it reads the same at any size.
+        val stroke = minOf(width, height) * 0.17f
+        track.strokeWidth = stroke
+        progress.strokeWidth = stroke
+        val inset = stroke / 2
         bounds.set(inset, inset, width - inset, height - inset)
         canvas.drawArc(bounds, 0f, 360f, false, track)
         if (shown > 0f) canvas.drawArc(bounds, -90f, 360f * shown / 100f, false, progress)
