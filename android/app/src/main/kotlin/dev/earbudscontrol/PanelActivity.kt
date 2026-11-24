@@ -21,6 +21,8 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 /** Pop-up panel: battery, noise control with per-mode options, and a live listening-level meter. */
+private const val STATUS_REFRESH_TICKS = 4
+
 class PanelActivity : Activity() {
     private lateinit var card: ViewGroup
     private lateinit var messageText: TextView
@@ -280,6 +282,11 @@ class PanelActivity : Activity() {
     }
 
     /** Holds one connection while the panel is visible: runs mode changes and polls the dB level. */
+    private fun Status.sameAs(other: Status) =
+        left == other.left && right == other.right && case == other.case &&
+            leftCharging == other.leftCharging && rightCharging == other.rightCharging &&
+            soundModes.contentEquals(other.soundModes)
+
     private inner class Worker : Thread("buds-panel") {
         private val actions = LinkedBlockingQueue<(Buds, Status) -> Status>()
         @Volatile private var running = true
@@ -299,11 +306,30 @@ class PanelActivity : Activity() {
                     var status = buds.status()
                     StatusCache.save(this@PanelActivity, status)
                     runOnUiThread { showMessage(null); showStatus(status) }
+                    // Live updates pushed by the earbuds: fold them into our state on this thread.
+                    buds.onSoundModesChanged = { pushed ->
+                        post { _, current ->
+                            val modes = SoundModes(pushed)
+                            runOnUiThread { showModes(modes, animate = true) }
+                            current.copy(ambient = modes.ambient, soundModes = pushed)
+                        }
+                    }
+                    var tick = 0
                     while (running) {
                         val action = actions.poll(1, TimeUnit.SECONDS)
                         if (action != null) {
                             status = action(buds, status)
                             StatusCache.save(this@PanelActivity, status)
+                        }
+                        // Full re-read every few seconds catches battery, charging and anything
+                        // the earbuds changed without telling us.
+                        if (++tick % STATUS_REFRESH_TICKS == 0 && actions.isEmpty()) {
+                            val fresh = buds.status()
+                            if (!fresh.sameAs(status)) {
+                                status = fresh
+                                StatusCache.save(this@PanelActivity, status)
+                                runOnUiThread { showStatus(fresh) }
+                            }
                         }
                         val db = buds.volumeLevel()
                         runOnUiThread { showLevel(db) }

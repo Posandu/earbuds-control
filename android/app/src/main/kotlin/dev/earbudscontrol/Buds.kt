@@ -54,6 +54,12 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
     private val inbox = LinkedBlockingQueue<ByteArray>()
     private val closed = AtomicBoolean(false)
 
+    /**
+     * Called on the reader thread whenever the earbuds announce new sound modes on their own
+     * (e.g. auto-switching when you take a bud out, or a change from the touch controls).
+     */
+    @Volatile var onSoundModesChanged: ((ByteArray) -> Unit)? = null
+
     init {
         Thread(::readLoop, "buds-reader").apply { isDaemon = true }.start()
     }
@@ -139,7 +145,12 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
             if (rest.size < length) return rest
             val frame = rest.copyOfRange(0, length)
             rest = rest.copyOfRange(length, rest.size)
-            if (checksum(frame, length - 1) == frame[length - 1].u()) inbox.put(frame)
+            if (checksum(frame, length - 1) != frame[length - 1].u()) continue
+            if (frame[5].u() == PUSH_SOUND_MODES[0] && frame[6].u() == PUSH_SOUND_MODES[1] && length >= 10 + 7) {
+                onSoundModesChanged?.invoke(frame.copyOfRange(9, 9 + 7))
+            } else {
+                inbox.put(frame)
+            }
         }
     }
 
@@ -170,6 +181,8 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
         private val CMD_STATE = intArrayOf(0x01, 0x01)
         private val CMD_SET_SOUND_MODES = intArrayOf(0x06, 0x81)
         private val CMD_VOLUME_LEVEL = intArrayOf(0x20, 0x03)
+        /** Sent by the earbuds, unprompted, when the sound modes change. */
+        private val PUSH_SOUND_MODES = intArrayOf(0x06, 0x01)
 
         // Offsets into the 01 01 state reply body (firmware 08.61).
         private const val OFF_BATTERY_LEFT = 2
