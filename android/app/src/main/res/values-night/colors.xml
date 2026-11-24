@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="scrim">#88000000</color>
+    <color name="card">#FF1E2024</color>
+    <color name="text">#FFF2F3F5</color>
+    <color name="text_secondary">#FFA3A8B0</color>
+    <color name="accent">#FF5B8DF5</color>
+    <color name="mode_idle">#FF2C2F35</color>
+    <color name="mode_icon_idle">#FFF2F3F5</color>
+    <color name="mode_icon_selected">#FFFFFFFF</color>
+    <color name="track">#FF33363C</color>
+</resources>

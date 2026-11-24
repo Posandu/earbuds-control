@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scrim"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/scrim">
+
+    <LinearLayout
+        android:id="@+id/card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="12dp"
+        android:background="@drawable/card"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Liberty 4 NC"
+            android:textColor="@color/text"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal">
+
+            <LinearLayout style="@style/Battery">
+                <TextView android:id="@+id/battery_left" style="@style/BatteryValue" />
+                <TextView style="@style/BatteryLabel" android:text="Left" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/Battery">
+                <TextView android:id="@+id/battery_case" style="@style/BatteryValue" />
+                <TextView style="@style/BatteryLabel" android:text="Case" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/Battery">
+                <TextView android:id="@+id/battery_right" style="@style/BatteryValue" />
+                <TextView style="@style/BatteryLabel" android:text="Right" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal">
+
+            <LinearLayout android:id="@+id/mode_nc" style="@style/Mode">
+                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_nc" />
+                <TextView style="@style/ModeLabel" android:text="Noise\nCancelling" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/mode_transparency" style="@style/Mode">
+                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_transparency" />
+                <TextView style="@style/ModeLabel" android:text="Transparency\n" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/mode_off" style="@style/Mode">
+                <ImageView style="@style/ModeIcon" android:src="@drawable/ic_mode_off" />
+                <TextView style="@style/ModeLabel" android:text="Off\n" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Listening level"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/db_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFeatureSettings="tnum"
+                android:text="– dB"
+                android:textColor="@color/text"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/db_bar"
+            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:layout_marginTop="8dp"
+            android:max="100"
+            android:progressDrawable="@drawable/level_bar" />
+    </LinearLayout>
+</FrameLayout>

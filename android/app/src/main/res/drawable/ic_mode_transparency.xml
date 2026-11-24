@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Transparency: small core with open rings (sound passes through). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2a10,10 0 1,1 0,20a10,10 0 1,1 0,-20zM12,3.6a8.4,8.4 0 1,1 0,16.8a8.4,8.4 0 1,1 0,-16.8zM12,6.2a5.8,5.8 0 1,1 0,11.6a5.8,5.8 0 1,1 0,-11.6zM12,7.8a4.2,4.2 0 1,1 0,8.4a4.2,4.2 0 1,1 0,-8.4zM12,10a2,2 0 1,1 0,4a2,2 0 1,1 0,-4z" />
+</vector>
