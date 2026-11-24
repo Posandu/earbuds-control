@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""scq - barebones control for Soundcore Liberty 4 NC (A3947) on Linux.
+
+The earbuds speak Soundcore's packet protocol over RFCOMM channel 7. On firmware
+08.61, while a BLE link is also open, they answer on a BLE GATT characteristic
+(service 014ef5da, characteristic 8888) instead of RFCOMM, and they switch
+between the two. So we send over RFCOMM and listen on both.
+
+Usage:
+  scq status
+  scq anc noise-canceling|transparency|normal
+  scq nc adaptive|manual|transportation [--level 1-5]
+  scq transparency full|vocal
+  scq db [--interval SECONDS] [--once] [--bar]
+"""
+
+import argparse
+import queue
+import socket
+import sys
+import threading
+import time
+
+import dbus
+import dbus.mainloop.glib
+from gi.repository import GLib
+
+RFCOMM_CHANNEL = 7
+GATT_SERVICE_UUID = "014ef5da-0000-1000-8000-00805f9b34fb"
+GATT_NOTIFY_UUID = "00008888-0000-1000-8000-00805f9b34fb"
+DEVICE_NAME_HINT = "Liberty 4 NC"
+
+OUT_HEADER = bytes([0x08, 0xEE, 0x00, 0x00, 0x00])
+IN_HEADER = bytes([0x09, 0xFF, 0x00, 0x00, 0x01])
+
+CMD_STATE = (0x01, 0x01)
+CMD_SET_SOUND_MODES = (0x06, 0x81)
+CMD_SOUND_MODES_CHANGED = (0x06, 0x01)
+CMD_VOLUME_LEVEL = (0x20, 0x03)
+
+AMBIENT = {0: "noise-canceling", 1: "transparency", 2: "normal"}
+NC_MODE = {0: "manual", 1: "adaptive", 2: "transportation"}
+TRANSPARENCY = {0: "full", 1: "vocal"}
+TRANSPORT = {0: "plane", 1: "train", 2: "bus", 3: "car"}
+
+# Offsets into the 159-byte body of the 01 01 state packet (firmware 08.61).
+OFF_BATTERY_LEFT, OFF_BATTERY_RIGHT = 2, 3
+OFF_CHARGING_LEFT, OFF_CHARGING_RIGHT = 4, 5
+OFF_FIRMWARE = slice(6, 16)
+OFF_SOUND_MODES = slice(126, 133)
+OFF_CASE_BATTERY = 139
+
+
+def build_packet(cmd, body=b""):
+    packet = OUT_HEADER + bytes(cmd) + (len(body) + 10).to_bytes(2, "little") + bytes(body)
+    return packet + bytes([sum(packet) & 0xFF])
+
+
+class FrameParser:
+    """Splits a byte stream into 09 ff ... frames, dropping garbage and bad checksums."""
+
+    def __init__(self):
+        self.buffer = b""
+
+    def feed(self, data):
+        self.buffer += data
+        frames = []
+        while True:
+            start = self.buffer.find(IN_HEADER)
+            if start < 0:
+                self.buffer = self.buffer[-(len(IN_HEADER) - 1):]
+                return frames
+            self.buffer = self.buffer[start:]
+            if len(self.buffer) < 9:
+                return frames
+            length = int.from_bytes(self.buffer[7:9], "little")
+            if length < 10:
+                self.buffer = self.buffer[1:]
+                continue
+            if len(self.buffer) < length:
+                return frames
+            frame, self.buffer = self.buffer[:length], self.buffer[length:]
+            if sum(frame[:-1]) & 0xFF == frame[-1]:
+                frames.append(frame)
+
+
+class Earbuds:
+    def __init__(self, mac=None):
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        self.bus = dbus.SystemBus()
+        self.device_path, self.mac = self._find_device(mac)
+        self.inbox = queue.Queue()
+        self._stop = False
+        self._gatt_char = None
+
+        self._subscribe_gatt()
+        self._loop = GLib.MainLoop()
+        threading.Thread(target=self._loop.run, daemon=True).start()
+
+        self.sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+        self.sock.settimeout(8)
+        try:
+            self.sock.connect((self.mac, RFCOMM_CHANNEL))
+        except OSError as err:
+            sys.exit(f"scq: could not open control channel to {self.mac}: {err}")
+        self.sock.settimeout(0.5)
+        threading.Thread(target=self._read_rfcomm, daemon=True).start()
+
+    def _objects(self):
+        manager = dbus.Interface(self.bus.get_object("org.bluez", "/"), "org.freedesktop.DBus.ObjectManager")
+        return manager.GetManagedObjects()
+
+    def _find_device(self, mac):
+        for path, ifaces in self._objects().items():
+            dev = ifaces.get("org.bluez.Device1")
+            if not dev:
+                continue
+            address = str(dev.get("Address", ""))
+            name = str(dev.get("Name", ""))
+            if mac and address.upper() == mac.upper():
+                return path, address
+            if not mac and DEVICE_NAME_HINT.lower() in name.lower() and dev.get("Connected"):
+                return path, address
+        sys.exit("scq: earbuds not found or not connected (pass --mac to pick one)")
+
+    def _subscribe_gatt(self):
+        objects = self._objects()
+        services = {
+            path for path, ifaces in objects.items()
+            if path.startswith(self.device_path + "/")
+            and str(ifaces.get("org.bluez.GattService1", {}).get("UUID", "")).lower() == GATT_SERVICE_UUID
+        }
+        for path, ifaces in objects.items():
+            char = ifaces.get("org.bluez.GattCharacteristic1")
+            if char and str(char.get("UUID", "")).lower() == GATT_NOTIFY_UUID and str(char.get("Service")) in services:
+                parser = FrameParser()
+                self.bus.add_signal_receiver(
+                    lambda iface, changed, _inv: self._on_gatt(parser, changed),
+                    dbus_interface="org.freedesktop.DBus.Properties",
+                    signal_name="PropertiesChanged",
+                    path=path,
+                )
+                self._gatt_char = dbus.Interface(self.bus.get_object("org.bluez", path), "org.bluez.GattCharacteristic1")
+                try:
+                    self._gatt_char.StartNotify()
+                except dbus.DBusException:
+                    pass
+                return
+
+    def _on_gatt(self, parser, changed):
+        if "Value" in changed:
+            for frame in parser.feed(bytes(changed["Value"])):
+                self.inbox.put(frame)
+
+    def _read_rfcomm(self):
+        parser = FrameParser()
+        while not self._stop:
+            try:
+                data = self.sock.recv(4096)
+            except socket.timeout:
+                continue
+            except OSError:
+                return
+            if not data:
+                return
+            for frame in parser.feed(data):
+                self.inbox.put(frame)
+
+    def request(self, cmd, body=b"", timeout=1.0, retries=3):
+        """Send a packet and return the body of the reply with the same command."""
+        packet = build_packet(cmd, body)
+        for _ in range(retries):
+            self.sock.send(packet)
+            deadline = time.monotonic() + timeout
+            while (remaining := deadline - time.monotonic()) > 0:
+                try:
+                    frame = self.inbox.get(timeout=remaining)
+                except queue.Empty:
+                    break
+                if tuple(frame[5:7]) == tuple(cmd):
+                    return frame[9:-1]
+        raise TimeoutError(f"no reply to command {cmd[0]:02x} {cmd[1]:02x}")
+
+    def close(self):
+        self._stop = True
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+        if self._gatt_char is not None:
+            try:
+                self._gatt_char.StopNotify()
+            except dbus.DBusException:
+                pass
+        self._loop.quit()
+
+
+def parse_sound_modes(raw):
+    return {
+        "ambient": AMBIENT.get(raw[0], f"unknown({raw[0]})"),
+        "manual_level": raw[1] >> 4,
+        "adaptive_level": raw[1] & 0x0F,
+        "transparency": TRANSPARENCY.get(raw[2], f"unknown({raw[2]})"),
+        "nc_mode": NC_MODE.get(raw[3], f"unknown({raw[3]})"),
+        "wind_noise": raw[4],
+        "environment_detection": bool(raw[5]),
+        "transport": TRANSPORT.get(raw[6], f"unknown({raw[6]})"),
+    }
+
+
+def read_state(buds):
+    body = buds.request(CMD_STATE)
+    if len(body) < OFF_CASE_BATTERY + 1:
+        sys.exit(f"scq: unexpected state packet length {len(body)}")
+    return body
+
+
+def battery(level, charging=False):
+    text = f"{level * 20}%" if level <= 5 else "n/a"
+    return text + (" (charging)" if charging else "")
+
+
+def cmd_status(buds, _args):
+    body = read_state(buds)
+    modes = parse_sound_modes(body[OFF_SOUND_MODES])
+    print(f"left      {battery(body[OFF_BATTERY_LEFT], body[OFF_CHARGING_LEFT])}")
+    print(f"right     {battery(body[OFF_BATTERY_RIGHT], body[OFF_CHARGING_RIGHT])}")
+    print(f"case      {battery(body[OFF_CASE_BATTERY])}")
+    firmware = bytes(body[OFF_FIRMWARE]).decode(errors="replace")
+    print(f"firmware  left {firmware[:5]}, right {firmware[5:]}")
+    line = f"mode      {modes['ambient']}"
+    if modes["ambient"] == "noise-canceling":
+        line += f" / {modes['nc_mode']}"
+        if modes["nc_mode"] == "manual":
+            line += f" level {modes['manual_level']}"
+        elif modes["nc_mode"] == "transportation":
+            line += f" ({modes['transport']})"
+    elif modes["ambient"] == "transparency":
+        line += f" / {modes['transparency']}"
+    print(line)
+
+
+def set_sound_modes(buds, change):
+    body = read_state(buds)
+    raw = bytearray(body[OFF_SOUND_MODES])
+    change(raw)
+    buds.request(CMD_SET_SOUND_MODES, bytes(raw))
+    print("mode      " + parse_sound_modes(raw)["ambient"])
+
+
+def reverse(mapping, name):
+    return {v: k for k, v in mapping.items()}[name]
+
+
+def cmd_anc(buds, args):
+    def change(raw):
+        raw[0] = reverse(AMBIENT, args.mode)
+    set_sound_modes(buds, change)
+
+
+def cmd_nc(buds, args):
+    def change(raw):
+        raw[0] = reverse(AMBIENT, "noise-canceling")
+        raw[3] = reverse(NC_MODE, args.mode)
+        if args.level is not None:
+            raw[1] = (args.level << 4) | (raw[1] & 0x0F)
+    set_sound_modes(buds, change)
+
+
+def cmd_transparency(buds, args):
+    def change(raw):
+        raw[0] = reverse(AMBIENT, "transparency")
+        raw[2] = reverse(TRANSPARENCY, args.mode)
+    set_sound_modes(buds, change)
+
+
+def cmd_db(buds, args):
+    try:
+        while True:
+            level = buds.request(CMD_VOLUME_LEVEL, timeout=0.5)[0]
+            if args.bar:
+                print(f"{level} dB" if level else "-- dB", flush=True)
+            elif args.once:
+                print(level)
+            else:
+                meter = "#" * (level // 2)
+                print(f"\r{level:3d} dB  {meter:<50}", end="", flush=True)
+            if args.once:
+                return
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        print()
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="scq", description="Control Soundcore Liberty 4 NC earbuds.")
+    parser.add_argument("--mac", help="earbuds' Bluetooth address (default: first connected Liberty 4 NC)")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("status", help="battery levels and current mode")
+
+    p = sub.add_parser("anc", help="switch noise canceling / transparency / normal")
+    p.add_argument("mode", choices=list(AMBIENT.values()))
+
+    p = sub.add_parser("nc", help="noise canceling mode")
+    p.add_argument("mode", choices=list(NC_MODE.values()))
+    p.add_argument("--level", type=int, choices=range(1, 6), help="manual noise canceling strength")
+
+    p = sub.add_parser("transparency", help="transparency mode")
+    p.add_argument("mode", choices=list(TRANSPARENCY.values()))
+
+    p = sub.add_parser("db", help="live listening level in dB")
+    p.add_argument("--interval", type=float, default=1.0, help="seconds between readings (default 1)")
+    p.add_argument("--once", action="store_true", help="print one reading and exit")
+    p.add_argument("--bar", action="store_true", help="one line per reading, for status bars")
+
+    args = parser.parse_args()
+    handlers = {
+        "status": cmd_status,
+        "anc": cmd_anc,
+        "nc": cmd_nc,
+        "transparency": cmd_transparency,
+        "db": cmd_db,
+    }
+    buds = Earbuds(args.mac)
+    try:
+        handlers[args.command](buds, args)
+    except TimeoutError as err:
+        sys.exit(f"scq: {err}")
+    finally:
+        buds.close()
+
+
+if __name__ == "__main__":
+    main()
