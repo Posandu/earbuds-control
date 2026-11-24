@@ -10,7 +10,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Quick settings tile: tap cycles Noise Cancelling -> Transparency -> Off; long-press opens the panel. */
+/** Quick settings tile: shows the current mode and battery; tap or long-press opens the panel. */
 class AncTileService : TileService() {
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
@@ -22,21 +22,8 @@ class AncTileService : TileService() {
         if (hasBluetoothPermission(this)) runOnBuds(waitMs = 0) { buds -> buds.status() }
     }
 
-    override fun onClick() {
-        if (!hasBluetoothPermission(this)) {
-            openPanel()
-            return
-        }
-        // Optimistic update so the tile reacts instantly.
-        val cached = StatusCache.load(this)
-        cached.ambient?.let { render(it.next(), "Switching…") }
-        runOnBuds(waitMs = 4000) { buds ->
-            val status = buds.status()
-            val next = (status.ambient ?: Ambient.NORMAL).next()
-            buds.setAmbient(next, status.soundModes)
-            status.copy(ambient = next)
-        }
-    }
+    /** Tapping the tile opens the control panel pop-up. */
+    override fun onClick() = openPanel()
 
     private fun runOnBuds(waitMs: Long, action: (Buds) -> Status) {
         if (!busy.compareAndSet(false, true)) return

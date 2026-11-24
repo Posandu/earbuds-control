@@ -8,19 +8,24 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.service.quicksettings.TileService
+import android.transition.AutoTransition
+import android.transition.TransitionManager
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
 import android.view.animation.PathInterpolator
 import android.window.OnBackInvokedDispatcher
+import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-/** Pop-up panel: battery rings, a segmented noise control switch, and a live listening-level meter. */
+/** Pop-up panel: battery rings, noise control with per-mode options, and a live listening-level meter. */
 class PanelActivity : Activity() {
-    private lateinit var card: View
+    private lateinit var card: ViewGroup
     private lateinit var messageText: TextView
     private lateinit var batteryTexts: List<TextView>
     private lateinit var rings: List<RingView>
@@ -30,6 +35,18 @@ class PanelActivity : Activity() {
     private lateinit var dbStatus: TextView
     private lateinit var dbMeter: LevelMeterView
 
+    private lateinit var ncModeRow: View
+    private lateinit var strengthRow: View
+    private lateinit var strength: SeekBar
+    private lateinit var strengthValue: TextView
+    private lateinit var transportRow: View
+    private lateinit var transparencyRow: View
+    private lateinit var ncModeChips: Map<NcMode, TextView>
+    private lateinit var transportChips: Map<Transport, TextView>
+    private lateinit var transparencyChips: Map<TransparencyMode, TextView>
+
+    /** Sound modes as last sent to / read from the earbuds; null until connected. */
+    private var modes: SoundModes? = null
     private var selected: Ambient? = null
     private var worker: Worker? = null
     private var dismissing = false
@@ -57,50 +74,24 @@ class PanelActivity : Activity() {
         applyBlurState(windowManager.isCrossWindowBlurEnabled)
         windowManager.addCrossWindowBlurEnabledListener(mainExecutor) { applyBlurState(it) }
         scrim.setOnClickListener { dismiss() }
-
         card.setOnClickListener { /* swallow taps inside the card */ }
+
         messageText = findViewById(R.id.message)
         batteryTexts = listOf(R.id.battery_left, R.id.battery_case, R.id.battery_right).map { findViewById(it) }
         rings = listOf(R.id.ring_left, R.id.ring_case, R.id.ring_right).map { findViewById(it) }
-        thumb = findViewById(R.id.segment_thumb)
-        segments = listOf(
-            Ambient.NOISE_CANCELING to findViewById(R.id.mode_nc),
-            Ambient.NORMAL to findViewById(R.id.mode_off),
-            Ambient.TRANSPARENCY to findViewById(R.id.mode_transparency),
-        )
         dbValue = findViewById(R.id.db_value)
         dbStatus = findViewById(R.id.db_status)
         dbMeter = findViewById(R.id.db_meter)
 
-        segments.forEach { (ambient, segment) ->
-            segment.setOnClickListener {
-                if (ambient == selected) return@setOnClickListener
-                segment.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                select(ambient, animate = true)
-                worker?.post { buds, status ->
-                    buds.setAmbient(ambient, status.soundModes)
-                    status.copy(ambient = ambient)
-                }
-            }
-        }
-        // Size and place the sliding thumb once the segments have been measured.
-        findViewById<View>(R.id.segments).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            val segmentWidth = segments.first().second.width
-            val params = thumb.layoutParams
-            val thumbWidth = segmentWidth - 2 * (params as android.view.ViewGroup.MarginLayoutParams).leftMargin
-            if (params.width != thumbWidth) {
-                params.width = thumbWidth
-                thumb.layoutParams = params
-            }
-            select(selected, animate = false)
-        }
+        setUpModeSwitch()
+        setUpDetails()
 
         if (Build.VERSION.SDK_INT >= 33) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { dismiss() }
         }
 
-        val cached = StatusCache.load(this)
-        select(cached.ambient, animate = false)
+        select(StatusCache.load(this).ambient, animate = false)
+        renderDetails(animate = false)
         animateIn()
     }
 
@@ -133,6 +124,83 @@ class PanelActivity : Activity() {
         if (worker != null) return
         showMessage("Connecting…")
         worker = Worker().also { it.start() }
+    }
+
+    // --- Controls -----------------------------------------------------------------------------
+
+    private fun setUpModeSwitch() {
+        thumb = findViewById(R.id.segment_thumb)
+        segments = listOf(
+            Ambient.NOISE_CANCELING to findViewById(R.id.mode_nc),
+            Ambient.NORMAL to findViewById(R.id.mode_off),
+            Ambient.TRANSPARENCY to findViewById(R.id.mode_transparency),
+        )
+        segments.forEach { (ambient, segment) ->
+            segment.setOnClickListener { change { it.withAmbient(ambient) } }
+        }
+        // Size and place the sliding thumb once the segments have been measured.
+        findViewById<View>(R.id.segments).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            val params = thumb.layoutParams as ViewGroup.MarginLayoutParams
+            val thumbWidth = segments.first().second.width - 2 * params.leftMargin
+            if (params.width != thumbWidth) {
+                params.width = thumbWidth
+                thumb.layoutParams = params
+            }
+            select(selected, animate = false)
+        }
+    }
+
+    private fun setUpDetails() {
+        ncModeRow = findViewById(R.id.nc_mode_row)
+        strengthRow = findViewById(R.id.strength_row)
+        strength = findViewById(R.id.strength)
+        strengthValue = findViewById(R.id.strength_value)
+        transportRow = findViewById(R.id.transport_row)
+        transparencyRow = findViewById(R.id.transparency_row)
+
+        ncModeChips = chips(ncModeRow, NcMode.entries, NcMode::label) { mode -> change { it.withNcMode(mode) } }
+        transportChips = chips(transportRow, Transport.entries, Transport::label) { t -> change { it.withTransport(t) } }
+        transparencyChips = chips(transparencyRow, TransparencyMode.entries, TransparencyMode::label) { mode ->
+            change { it.withTransparency(mode) }
+        }
+
+        strength.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                strengthValue.text = progress.toString()
+                if (fromUser) seekBar.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar) {
+                change(haptic = false) { it.withManualLevel(seekBar.progress) }
+            }
+        })
+    }
+
+    private fun <T> chips(row: View, items: List<T>, label: (T) -> String, onPick: (T) -> Unit): Map<T, TextView> {
+        row as LinearLayout
+        return items.associateWith { item ->
+            (layoutInflater.inflate(R.layout.chip, row, false) as TextView).also { chip ->
+                chip.text = label(item)
+                chip.setOnClickListener { onPick(item) }
+                row.addView(chip)
+            }
+        }
+    }
+
+    /** Apply a sound mode change: update the UI right away, then send it to the earbuds. */
+    private fun change(haptic: Boolean = true, transform: (SoundModes) -> SoundModes) {
+        val current = modes ?: return
+        val next = transform(current)
+        if (next.bytes.contentEquals(current.bytes)) return
+        if (haptic) card.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+        showModes(next, animate = true)
+        worker?.post { buds, status ->
+            val updated = transform(SoundModes(status.soundModes))
+            buds.setSoundModes(updated.bytes)
+            status.copy(ambient = updated.ambient, soundModes = updated.bytes)
+        }
     }
 
     // --- Animations ---------------------------------------------------------------------------
@@ -191,7 +259,30 @@ class PanelActivity : Activity() {
             batteryTexts[i].text = percent?.let { "$it%" + if (charging[i]) "⚡" else "" } ?: "–"
             rings[i].setLevel(percent)
         }
-        if (status.ambient != selected) select(status.ambient, animate = true)
+        showModes(SoundModes(status.soundModes), animate = modes != null)
+    }
+
+    private fun showModes(next: SoundModes, animate: Boolean) {
+        modes = next
+        if (next.ambient != selected) select(next.ambient, animate)
+        renderDetails(animate)
+    }
+
+    private fun renderDetails(animate: Boolean) {
+        if (animate) TransitionManager.beginDelayedTransition(card, AutoTransition().setDuration(220))
+        val m = modes
+        val nc = m?.ambient == Ambient.NOISE_CANCELING
+        ncModeRow.visibility = if (nc) View.VISIBLE else View.GONE
+        strengthRow.visibility = if (nc && m?.ncMode == NcMode.MANUAL) View.VISIBLE else View.GONE
+        transportRow.visibility = if (nc && m?.ncMode == NcMode.TRANSPORT) View.VISIBLE else View.GONE
+        transparencyRow.visibility = if (m?.ambient == Ambient.TRANSPARENCY) View.VISIBLE else View.GONE
+        if (m == null) return
+
+        ncModeChips.forEach { (mode, chip) -> chip.isSelected = mode == m.ncMode }
+        transportChips.forEach { (t, chip) -> chip.isSelected = t == m.transport }
+        transparencyChips.forEach { (mode, chip) -> chip.isSelected = mode == m.transparency }
+        strength.progress = m.manualLevel
+        strengthValue.text = m.manualLevel.toString()
     }
 
     private fun showLevel(db: Int) {
@@ -234,7 +325,6 @@ class PanelActivity : Activity() {
                         if (action != null) {
                             status = action(buds, status)
                             StatusCache.save(this@PanelActivity, status)
-                            runOnUiThread { showStatus(status) }
                         }
                         val db = buds.volumeLevel()
                         runOnUiThread { showLevel(db) }

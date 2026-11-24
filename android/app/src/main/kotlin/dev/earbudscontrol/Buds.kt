@@ -75,8 +75,11 @@ class Buds private constructor(private val socket: BluetoothSocket) : AutoClosea
 
     /** Switch ambient mode, keeping every other sound mode setting as it is. */
     fun setAmbient(ambient: Ambient, currentSoundModes: ByteArray) {
-        val modes = currentSoundModes.copyOf()
-        modes[0] = ambient.byte.toByte()
+        setSoundModes(SoundModes(currentSoundModes).withAmbient(ambient).bytes)
+    }
+
+    /** Send all 7 sound mode bytes (see [SoundModes]). */
+    fun setSoundModes(modes: ByteArray) {
         request(CMD_SET_SOUND_MODES, modes)
     }
 

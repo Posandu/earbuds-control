@@ -111,6 +111,57 @@
             </LinearLayout>
         </FrameLayout>
 
+        <!-- Mode details: which rows show depends on the selected mode -->
+        <LinearLayout
+            android:id="@+id/details"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout android:id="@+id/nc_mode_row" style="@style/ChipRow" />
+
+            <LinearLayout
+                android:id="@+id/strength_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Strength"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+
+                <SeekBar
+                    android:id="@+id/strength"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:max="5"
+                    android:min="1"
+                    android:progressBackgroundTint="@color/ring_track"
+                    android:progressTint="@color/accent"
+                    android:thumbTint="@color/accent" />
+
+                <TextView
+                    android:id="@+id/strength_value"
+                    android:layout_width="20dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:fontFeatureSettings="tnum"
+                    android:gravity="end"
+                    android:textColor="@color/text"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/transport_row" style="@style/ChipRow" />
+
+            <LinearLayout android:id="@+id/transparency_row" style="@style/ChipRow" />
+        </LinearLayout>
+
         <!-- Listening level -->
         <LinearLayout
             android:layout_width="match_parent"
